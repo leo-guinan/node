@@ -1,0 +1,45 @@
+version: '3'
+
+services:
+  web:
+    build: .
+    command: uvicorn main:app --host 0.0.0.0 --port 5000 --log-level debug --use-colors
+    env_file:
+      - .env
+    ports:
+      - "5000:5000"
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4GB
+        reservations:
+          cpus: '2'
+          memory: 2GB
+
+  db:
+    image: chromadb/chroma
+    command: uvicorn chromadb.app:app --reload --workers 1 --host 0.0.0.0 --port 8000 --log-config /log_config.yml
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ALLOW_RESET=TRUE
+    volumes:
+      - ./log_config.yml:/log_config.yml
+    ports:
+        - "8000:8000"
+
+  mongodb:
+    image: mongo:5
+    container_name: myagi-mongodb
+    ports:
+      - 27018:27017
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: myagi
+      MONGO_INITDB_ROOT_PASSWORD: myagi
+    volumes:
+      - mongodb-data:/data/db
+
+volumes:
+
+  mongodb-data:
