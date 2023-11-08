@@ -112,7 +112,7 @@ def remember(text):
     embedding_function = OpenAIEmbeddings(openai_api_key=dc_config("OPENAI_API_KEY"))
 
     # load it into Chroma
-    client = chromadb.HttpClient(host='db', port=8000)
+    client = chromadb.HttpClient(host=dc_config("CHROMADB_HOST"), port=dc_config("CHROMADB_PORT"))
     client.reset()  # resets the database
     collection = client.create_collection("my_collection")
     for doc in docs:
