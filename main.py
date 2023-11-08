@@ -6,6 +6,7 @@ from typing import Annotated
 
 import chromadb
 from fastapi import FastAPI, Depends
+from langchain.embeddings import OpenAIEmbeddings
 from pydantic import BaseModel
 from pymongo import MongoClient
 # import
@@ -108,7 +109,7 @@ def remember(text):
     docs = text_splitter.split_text(text)
 
     # create the open-source embedding function
-    embedding_function = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
+    embedding_function = OpenAIEmbeddings(openai_api_key=config("OPENAI_API_KEY"))
 
     # load it into Chroma
     client = chromadb.HttpClient(host='db', port=8000)
