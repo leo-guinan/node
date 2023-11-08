@@ -109,7 +109,7 @@ def remember(text):
     docs = text_splitter.split_text(text)
 
     # create the open-source embedding function
-    embedding_function = OpenAIEmbeddings(openai_api_key=config("OPENAI_API_KEY"))
+    embedding_function = OpenAIEmbeddings(openai_api_key=dc_config("OPENAI_API_KEY"))
 
     # load it into Chroma
     client = chromadb.HttpClient(host='db', port=8000)
