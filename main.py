@@ -2,7 +2,6 @@ import json
 import uuid
 from datetime import date
 from functools import lru_cache
-from typing import Annotated
 
 import chromadb
 from fastapi import FastAPI, Depends
@@ -10,10 +9,8 @@ from langchain.embeddings import OpenAIEmbeddings
 from pydantic import BaseModel
 from pymongo import MongoClient
 # import
-from langchain.embeddings.sentence_transformer import SentenceTransformerEmbeddings
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import Chroma
-from langchain.document_loaders import TextLoader
 
 from decouple import config as dc_config
 
@@ -113,8 +110,7 @@ def remember(text):
 
     # load it into Chroma
     client = chromadb.HttpClient(host=dc_config("CHROMADB_HOST"), port=dc_config("CHROMADB_PORT"))
-    client.reset()  # resets the database
-    collection = client.create_collection("my_collection")
+    collection = client.create_collection("my_collection", get_or_create=True, embedding_function=embedding_function)
     for doc in docs:
         collection.add(
             ids=[str(uuid.uuid1())], metadatas=[{"text": doc, "date": str(date.today()), "context": "work"}], documents=[doc]
