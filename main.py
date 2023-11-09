@@ -110,18 +110,20 @@ def remember(text):
 
     # load it into Chroma
     client = chromadb.HttpClient(host=dc_config("CHROMADB_HOST"), port=dc_config("CHROMADB_PORT"))
-    collection = client.create_collection("my_collection", get_or_create=True, embedding_function=embedding_function)
-    for doc in docs:
-        collection.add(
-            ids=[str(uuid.uuid1())], metadatas=[{"text": doc, "date": str(date.today()), "context": "work"}], documents=[doc]
-        )
+    chroma = Chroma(client=client, collection_name="my_collection", embedding_function=embedding_function)
+    ids = []
+    metadatas = []
+    documents = []
 
-    # tell LangChain to use our client and collection name
-    db4 = Chroma(
-        client=client,
-        collection_name="my_collection",
-        embedding_function=embedding_function,
-    )
+    for doc in docs:
+        ids.append(str(uuid.uuid1()))
+        metadatas.append({"text": doc, "date": str(date.today()), "context": "work"})
+        documents.append(doc)
+
+    chroma.add_texts(documents, metadatas=metadatas, ids=ids)
+
+
+
     query = "What needs to be done and by when?"
-    docs = db4.similarity_search(query)
+    docs = chroma.similarity_search(query)
     print(docs[0].page_content)
