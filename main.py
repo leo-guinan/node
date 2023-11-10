@@ -159,18 +159,5 @@ async def webhook(webhook_uuid: str, body: WebhookBody):
         "body": json.dumps(body)
 
     })
-    template = """This is a response to a question:
 
-       {input}
-
-       What do you think that means?
-       """
-
-    prompt = PromptTemplate(input_variables=["input"], template=template)
-    summary_chain = LLMChain(
-        llm=OpenAI(openai_api_key=dc_config("OPENAI_API_KEY")),
-        prompt=prompt,
-        verbose=True,
-    )
-
-    return summary_chain.run(input=body.name)
+    return {"message": "ok"}
