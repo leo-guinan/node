@@ -1,11 +1,19 @@
+from __future__ import annotations
+
 import json
+import logging
 import uuid
 from datetime import date
 from functools import lru_cache
 
 import chromadb
+import requests
 from fastapi import FastAPI, Depends
+from langchain.chains import LLMChain
 from langchain.embeddings import OpenAIEmbeddings
+from langchain.llms.openai import OpenAI
+from langchain.memory import ReadOnlySharedMemory, ConversationBufferMemory
+from langchain.prompts import PromptTemplate
 from pydantic import BaseModel
 from pymongo import MongoClient
 # import
@@ -19,6 +27,10 @@ from agent import shared
 
 mongo_client = MongoClient(dc_config('MONGODB_CONNECTION_STRING'))
 db = mongo_client.agi
+logger = logging.getLogger(__name__)
+
+class WebhookBody(BaseModel):
+    name: str
 
 
 @lru_cache
@@ -28,6 +40,7 @@ def get_settings():
 app = FastAPI()
 class Data(BaseModel):
     message: str
+    respond_to: str = None
 
 @app.get("/")
 async def root():
@@ -54,7 +67,7 @@ async def ask():
 
 @app.post("/tell")
 async def tell(data: Data):
-
+    logger.info("Data:", data)
     conversation = {
         "uuid": str(uuid.uuid4()),
         "messages": [
@@ -66,6 +79,8 @@ async def tell(data: Data):
         ]
     }
 
+    logger.info(f"Processing message: {data.message}")
+
     response = shared(data.message)
 
     conversation["messages"].append({
@@ -73,15 +88,24 @@ async def tell(data: Data):
         "text": response
     })
 
+    logger.info("Remembering conversation")
     remember(json.dumps(conversation))
+
+    logger.info("Saving conversation")
     db.conversations.insert_one(conversation)
-    return response
+
+    if data.respond_to:
+        logger.info("Responding to webhook")
+        requests.post(data.respond_to, json={
+            "message": response
+        })
+    return {"message": response}
 
 @app.post("/upload")
 def upload_file(request):
     # Get JSON data from request
     data = request.json
-    print("Data:", data)
+    logger.info("Data:", data)
 
     # Check for file in request
     if "file" in request.files:
@@ -126,4 +150,27 @@ def remember(text):
 
     query = "What needs to be done and by when?"
     docs = chroma.similarity_search(query)
-    print(docs[0].page_content)
+    logger.info(docs[0].page_content)
+
+@app.post("/webhook/{webhook_uuid}")
+async def webhook(webhook_uuid: str, body: WebhookBody):
+    db.webhooks.insert_one({
+        "uuid": webhook_uuid,
+        "body": json.dumps(body)
+
+    })
+    template = """This is a response to a question:
+
+       {input}
+
+       What do you think that means?
+       """
+
+    prompt = PromptTemplate(input_variables=["input"], template=template)
+    summary_chain = LLMChain(
+        llm=OpenAI(openai_api_key=dc_config("OPENAI_API_KEY")),
+        prompt=prompt,
+        verbose=True,
+    )
+
+    return summary_chain.run(input=body.name)
